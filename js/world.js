@@ -5,7 +5,7 @@ class World{
             buildingWidth = 150,
             buildingMinLength = 150,
             spacing = 50,
-            treeSize = 100
+            treeSize = 160
         ){
         this.graph = graph;
         this.roadRoundness = roadRoundness;
@@ -39,7 +39,7 @@ class World{
     #generateTrees(){
         const points = [
             ...this.roadBorders.map((e)=>[e.p1, e.p2]).flat(),
-            ...this.buildings.map((e)=>e.points).flat()
+            ...this.buildings.map((e)=>e.base.points).flat()
         ];
 
         const left = Math.min(...points.map((p)=>p.x));
@@ -48,7 +48,7 @@ class World{
         const bottom = Math.max(...points.map((p)=>p.y));
 
         const illegalPolys = [
-            ...this.buildings,
+            ...this.buildings.map((b)=>b.base),
             ...this.envelopes.map((e)=>e.poly)
         ]
 
@@ -70,7 +70,7 @@ class World{
 
             if(keep){
                 for(const t of trees){
-                    if(distance(t, p)<this.treeSize){
+                    if(distance(t.center, p)<this.treeSize){
                         keep = false;
                         break;
                     }
@@ -89,7 +89,7 @@ class World{
             }
 
             if(keep) {
-                trees.push(p);
+                trees.push(new Tree(p, this.treeSize));
                 tryCount = 0;
             }
             tryCount++;
@@ -151,19 +151,22 @@ class World{
             bases.push(new Envelope(seg, this.buildingWidth).poly);
         }
 
+        const eps = 0.001;
         for(let i=0;i<bases.length-1;i++){
             for(let j=i+1;j<bases.length;j++){
-                if(bases[i].intersectsPoly(bases[j])){
+                if(bases[i].intersectsPoly(bases[j])
+                    || bases[i].distanceToPoly(bases[j]) < this.spacing - eps
+                ){
                     bases.splice(j,1);
                     j--;
                 }
             }
         }
-        return bases;
+        return bases.map((b)=>new Building(b));
     }
 
 
-    draw(){
+    draw(viewpoint){
         for(const env of this.envelopes){
             env.draw(ctx, {fill: "#BBB", stroke:"#BBB", linewidth: 15});
         }
@@ -174,11 +177,14 @@ class World{
         for(const seg of this.roadBorders){
             seg.draw(ctx, {color:"white", width:4});
         }
-        for(const tree of this.trees){
-            tree.draw(ctx, {size:this.treeSize, color:"rgba(0,0,0,0.5"});
+        const items = [...this.buildings, ...this.trees];
+        items.sort((a,b)=>
+            b.base.distanceToPoint(viewpoint) - 
+            a.base.distanceToPoint(viewpoint)
+        );
+        for(const item of items){
+            item.draw(ctx, viewpoint);
         }
-        for(const bld of this.buildings){
-            bld.draw(ctx, {color:"white"});
-        }
+        
     }
 }
