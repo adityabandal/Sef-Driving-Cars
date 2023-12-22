@@ -185,6 +185,6 @@ class World{
         for(const item of items){
             item.draw(ctx, viewpoint);
         }
-        
+        // demo change
     }
 }
